@@ -4,7 +4,7 @@ import api from "../api/axios";
 
 import EntityForm from "../components/entities/EntityForm";
 
-function EntitiesPage() {
+function entitiesPage() {
 
   const [entities, setEntities] = useState([]);
 
@@ -166,4 +166,4 @@ function EntitiesPage() {
   );
 }
 
-export default EntitiesPage;
+export default entitiesPage;

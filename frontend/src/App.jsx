@@ -5,7 +5,7 @@ import {
   Link
 } from "react-router-dom";
 
-import EntitiesPage from "./pages/EntitiesPage";
+import entitiesPage from "./pages/entitiesPage";
 
 function HomePage() {
 
@@ -176,7 +176,7 @@ function App() {
 
         <Route
           path="/entities"
-          element={<EntitiesPage />}
+          element={<entitiesPage />}
         />
 
         <Route
