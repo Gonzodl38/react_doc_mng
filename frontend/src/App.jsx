@@ -5,7 +5,7 @@ import {
   Link
 } from "react-router-dom";
 
-import entitiesPage from "./pages/entitiesPage";
+import entitiesPage from "./pages/temp";
 
 function HomePage() {
 
