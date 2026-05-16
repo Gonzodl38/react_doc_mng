@@ -39,7 +39,7 @@
           <li class="nav-item dropdown">
             <a class="nav-link dropdown-toggle
             {% if request.endpoint in
-              ['list_entities','list_dependences',
+              ['list_entities','list_dependencies',
                'list_series','list_subseries','list_doctypes'] %}
                active
             {% endif %}" href="#" data-bs-toggle="dropdown">
@@ -49,7 +49,7 @@
             <ul class="dropdown-menu">
               <li><a class="dropdown-item" href="{{ url_for('list_entities') }}">Entidades</a></li>
 
-              <li><a class="dropdown-item" href="{{ url_for('list_dependences') }}">Dependencias</a></li>
+              <li><a class="dropdown-item" href="{{ url_for('list_dependencies') }}">Dependencias</a></li>
 
               <li><a class="dropdown-item" href="{{ url_for('list_series') }}">Series</a></li>
 

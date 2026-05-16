@@ -197,7 +197,7 @@ def _compile_sqlite_type(sa_col):
         return "TEXT"  # safe default
 
 
-def ensure_sqlite_schema_matches_models():
+def ensure_sqlite_schema_matches_models22():
     """Non-destructive SQLite schema sync.
 
     - Create missing tables
@@ -244,7 +244,7 @@ def ensure_sqlite_schema_matches_models():
 # -----------------------------
 # MySQL reachability helper
 # -----------------------------
-def mysql_reachable() -> bool:
+def mysql_reachable1() -> bool:
     """Check quickly if MySQL is reachable; used to decide DB backend."""
     try:
         conn = pymysql.connect(
@@ -267,14 +267,13 @@ def configure_database():
     app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
 
     # ============================================
-    # SELECT DATABASE
+    # SQLITE DATABASE
     # ============================================
-    if mysql_reachable() and MYSQL_URI:
-        print("✅ Using MySQL")
-        app.config["SQLALCHEMY_DATABASE_URI"] = MYSQL_URI
-    else:
-        print("⚠️ Using SQLite fallback")
-        app.config["SQLALCHEMY_DATABASE_URI"] = SQLITE_URI
+    print("✅ Using SQLite")
+
+    app.config["SQLALCHEMY_DATABASE_URI"] = (
+        "sqlite:///doc_management.db"
+    )
 
     # ============================================
     # SAFETY CHECK
@@ -300,8 +299,8 @@ def configure_database():
             print("✅ Database connection OK")
 
             # 🔥 ADD THIS BLOCK
-            if app.config["SQLALCHEMY_DATABASE_URI"].startswith("sqlite"):
-                ensure_sqlite_schema_matches_models()
+            #if app.config["SQLALCHEMY_DATABASE_URI"].startswith("sqlite"):
+                #ensure_sqlite_schema_matches_models()
 
         except Exception as e:
             print("❌ Database connection failed:", e)
@@ -336,19 +335,19 @@ def normalize_na(value):
         return None
     return value
 # =========================================================
-# HELPER dependences TREE
+# HELPER dependencies TREE
 # =========================================================
 
-def build_dependences_hierarchy(entity_id=None):
+def build_dependencies_hierarchy(entity_id=None):
     q = Dependency.query
 
     if entity_id:
         q = q.filter(Dependency.entity_id == entity_id)
 
-    dependences = q.order_by(Dependency.code.asc()).all()
+    dependencies = q.order_by(Dependency.code.asc()).all()
 
     children_map = defaultdict(list)
-    for d in dependences:
+    for d in dependencies:
         if d.parent_id:
             children_map[d.parent_id].append(d)
 
@@ -359,7 +358,7 @@ def build_dependences_hierarchy(entity_id=None):
         for child in children_map.get(dep.id, []):  # ✅ FIXED
             walk(child, level + 1)
 
-    roots = [d for d in dependences if not d.parent_id]
+    roots = [d for d in dependencies if not d.parent_id]
 
     for root in roots:
         walk(root, 0)
@@ -839,11 +838,11 @@ def add_entity_inline():
 
     return jsonify({"id": entity.id})
 # =========================================================
-# dependences
+# dependencies
 # =========================================================
 
-@app.route('/dependences')
-def list_dependences():
+@app.route('/dependencies')
+def list_dependencies():
 
     active_entity_id = request.args.get("entity_id", type=int) \
         or session.get("active_entity_id")
@@ -859,12 +858,12 @@ def list_dependences():
     if active_entity_id:
         q = q.filter(Dependency.entity_id == active_entity_id)
 
-    dependences = q.order_by(Dependency.code.asc()).all()
+    dependencies = q.order_by(Dependency.code.asc()).all()
 
     return render_template(
-        'list_dependences.html',
-        dependences=dependences,
-        dependences_hierarchy=build_dependences_hierarchy(active_entity_id),
+        'list_dependencies.html',
+        dependencies=dependencies,
+        dependencies_hierarchy=build_dependencies_hierarchy(active_entity_id),
         entities=entities,  # ✅ NEW
         active_entity_id=active_entity_id  # ✅ ensure passed
     )
@@ -872,11 +871,11 @@ def list_dependences():
 
 import re;
 # =========================================================
-# ADD dependences WITH SMART FUNCTIONS PARSING (FIXED)
+# ADD dependencies WITH SMART FUNCTIONS PARSING (FIXED)
 # =========================================================
 
-@app.route('/dependences/add', methods=['POST'])
-def add_dependences():
+@app.route('/dependencies/add', methods=['POST'])
+def add_dependencies():
 
     from sqlalchemy import func
     from sqlalchemy.exc import IntegrityError
@@ -894,17 +893,17 @@ def add_dependences():
 
     if not name:
         flash("El nombre de la Dependencia es obligatorio.", "warning")
-        return redirect(url_for('list_dependences'))
+        return redirect(url_for('list_dependencies'))
 
     if not entity_id:
         flash("Debe seleccionar una Entidad.", "warning")
-        return redirect(url_for('list_dependences'))
+        return redirect(url_for('list_dependencies'))
 
     if dependency_of:
         parent = db.session.get(Dependency, dependency_of)
         if not parent or parent.entity_id != entity_id:
             flash("Dependencia padre inválida.", "danger")
-            return redirect(url_for('list_dependences'))
+            return redirect(url_for('list_dependencies'))
 
     exists = db.session.query(Dependency).filter(
         func.lower(Dependency.name) == name.lower(),
@@ -913,7 +912,7 @@ def add_dependences():
 
     if exists:
         flash("Ya existe una Dependencia con ese nombre.", "warning")
-        return redirect(url_for('list_dependences'))
+        return redirect(url_for('list_dependencies'))
 
     try:
         dep = Dependency(
@@ -964,22 +963,22 @@ def add_dependences():
     except IntegrityError:
         db.session.rollback()
         flash("❌ No se permiten números de función duplicados.", "danger")
-        return redirect(url_for('list_dependences'))
+        return redirect(url_for('list_dependencies'))
 
     except Exception as e:
         db.session.rollback()
         flash(f"❌ Error inesperado: {str(e)}", "danger")
-        return redirect(url_for('list_dependences'))
+        return redirect(url_for('list_dependencies'))
 
     flash("Dependency added successfully!", "success")
-    return redirect(url_for('list_dependences'))
+    return redirect(url_for('list_dependencies'))
 
 # =========================================================
-# EDIT dependences (FIXED & SAFE)
+# EDIT dependencies (FIXED & SAFE)
 # =========================================================
 
-@app.route('/edit_dependences/<int:id>', methods=['GET', 'POST'])
-def edit_dependences(id):
+@app.route('/edit_dependencies/<int:id>', methods=['GET', 'POST'])
+def edit_dependencies(id):
 
     from sqlalchemy import func
     from sqlalchemy.exc import IntegrityError
@@ -988,7 +987,7 @@ def edit_dependences(id):
     if not dep:
         abort(404)
 
-    dependences_hierarchy = build_dependences_hierarchy(dep.entity_id) or []
+    dependencies_hierarchy = build_dependencies_hierarchy(dep.entity_id) or []
 
     if request.method == 'POST':
 
@@ -1008,12 +1007,12 @@ def edit_dependences(id):
         # ===============================
         if not name:
             flash("El nombre de la Dependencia es obligatorio.", "warning")
-            return redirect(url_for('edit_dependences', id=id))
+            return redirect(url_for('edit_dependencies', id=id))
 
         # ---------- PREVENT SELF-PARENT ----------
         if dependency_of == dep.id:
             flash("Una dependencia no puede ser su propio padre.", "danger")
-            return redirect(url_for('edit_dependences', id=id))
+            return redirect(url_for('edit_dependencies', id=id))
 
         # ---------- VALIDATE PARENT ----------
         if dependency_of:
@@ -1021,7 +1020,7 @@ def edit_dependences(id):
 
             if not parent or parent.entity_id != dep.entity_id:
                 flash("Dependencia padre inválida.", "danger")
-                return redirect(url_for('edit_dependences', id=id))
+                return redirect(url_for('edit_dependencies', id=id))
 
         # ---------- AVOID DUPLICATES ----------
         exists = db.session.query(Dependency).filter(
@@ -1032,7 +1031,7 @@ def edit_dependences(id):
 
         if exists:
             flash("Ya existe una Dependencia con ese nombre.", "warning")
-            return redirect(url_for('edit_dependences', id=id))
+            return redirect(url_for('edit_dependencies', id=id))
 
         # ===============================
         # UPDATE
@@ -1074,22 +1073,22 @@ def edit_dependences(id):
         except Exception as e:
             db.session.rollback()
             flash(f"❌ Error: {str(e)}", "danger")
-            return redirect(url_for('edit_dependences', id=id))
+            return redirect(url_for('edit_dependencies', id=id))
 
         flash('Dependency updated successfully.', 'success')
-        return redirect(url_for('list_dependences'))
+        return redirect(url_for('list_dependencies'))
 
     return render_template(
-        'edit_dependences.html',
+        'edit_dependencies.html',
         dep=dep,
-        dependences_hierarchy=dependences_hierarchy
+        dependencies_hierarchy=dependencies_hierarchy
     )
 
 #========================================================
 # FUNCTIONS PREVIEW (AJAX)
 #========================================================
 
-@app.route('/dependences/preview_functions', methods=['POST'])
+@app.route('/dependencies/preview_functions', methods=['POST'])
 def preview_functions():
     import re
 
@@ -1120,10 +1119,10 @@ def preview_functions():
 
     return jsonify(result)
 # =========================================================
-# DELETE dependences (with cascade delete of functions)
+# DELETE dependencies (with cascade delete of functions)
 # =========================================================
-@app.route('/dependences/delete/<int:id>')
-def delete_dependences(id):
+@app.route('/dependencies/delete/<int:id>')
+def delete_dependencies(id):
     dep = Dependency.query.get_or_404(id)
     db.session.delete(dep)
     try:
@@ -1131,10 +1130,10 @@ def delete_dependences(id):
     except Exception:
         db.session.rollback()
         flash("Error deleting dependency!", "danger")
-    return redirect(url_for('list_dependences'))
+    return redirect(url_for('list_dependencies'))
 
 # =========================================================
-# dependences FUNCTIONS
+# dependencies FUNCTIONS
 # =========================================================
 # =========================================================
 # API DEPENDENCIES (FIXED)
@@ -1148,7 +1147,7 @@ def get_dependencies():
         return jsonify([])
 
     try:
-        dependences = (
+        dependencies = (
             Dependency.query
             .filter(Dependency.entity_id == entity_id)
             .order_by(Dependency.name)
@@ -1161,15 +1160,15 @@ def get_dependencies():
                 "name": d.name,
                 "boss_name": d.boss_name or ""
             }
-            for d in dependences
+            for d in dependencies
         ])
 
     except Exception as e:
         print("❌ ERROR /api/dependencies:", e)
         return jsonify([]), 500
     
-@app.route('/add_dependences_inline', methods=['POST'])
-def add_dependences_inline():
+@app.route('/add_dependencies_inline', methods=['POST'])
+def add_dependencies_inline():
 
     data = request.get_json() or {}
 
@@ -1908,7 +1907,7 @@ def list_documental_studies():
         )
 
     # ============================================
-    # GROUP BY dependences
+    # GROUP BY dependencies
     # ============================================
     from collections import defaultdict
     studies_by_dep = defaultdict(list)
@@ -1918,9 +1917,9 @@ def list_documental_studies():
             studies_by_dep[s.dependency_id].append(s)
 
     # ============================================
-    # dependences HIERARCHY
+    # dependencies HIERARCHY
     # ============================================
-    dependences_hierarchy = build_dependences_hierarchy(active_entity_id)
+    dependencies_hierarchy = build_dependencies_hierarchy(active_entity_id)
 
     # ============================================
     # FUNCTIONS MAP
@@ -1959,7 +1958,7 @@ def list_documental_studies():
     return render_template(
         'list_documental_studies.html',
         studies=studies,
-        dependences_hierarchy=dependences_hierarchy,
+        dependencies_hierarchy=dependencies_hierarchy,
         studies_by_dep=studies_by_dep,
         functions_by_id=functions_by_id,
         series_by_id=series_by_id,
@@ -2061,7 +2060,7 @@ def api_create_doctype_chain():
         return jsonify(success=False, error=str(e)), 500
 
 # ========================================================
-# GET USED FUNCTIONS FOR dependences (AJAX)
+# GET USED FUNCTIONS FOR dependencies (AJAX)
 # ========================================================
 @app.get("/api/dependencies/<int:dependency_id>/used-functions")
 def get_used_functions(dependency_id):
@@ -2404,7 +2403,7 @@ def edit_documental_studies(id):
             flash(f"Error al actualizar: {e}", "danger")
 
     entities = Entity.query.order_by(Entity.name).all()
-    dependences = Dependency.query.order_by(Dependency.name).all()
+    dependencies = Dependency.query.order_by(Dependency.name).all()
     series = Series.query.order_by(Series.name).all()
     subseries = Subseries.query.order_by(Subseries.name).all()
     doctypes = Doctype.query.order_by(Doctype.name).all()
@@ -2413,7 +2412,7 @@ def edit_documental_studies(id):
     #    'edit_documental_studies.html',
     #    study=study,
     #    entities=entities,
-    #    dependences=dependences,
+    #    dependencies=dependencies,
     #    series=series,
     #    subseries=subseries,
     #    doctypes=doctypes,
@@ -2574,8 +2573,8 @@ def get_doctypes(subserie_id):
     return jsonify([{"id": d.id, "name": d.name} for d in doctypes])
 
 
-@app.route('/get_dependences_parent/<int:dependency_id>')
-def get_dependences_parent(dependency_id):
+@app.route('/get_dependencies_parent/<int:dependency_id>')
+def get_dependencies_parent(dependency_id):
     dep = db.session.get(Dependency, dependency_id)
     if not dep or not dep.parent_id:
         return jsonify({'parent_name': None})
@@ -2583,8 +2582,8 @@ def get_dependences_parent(dependency_id):
     return jsonify({'parent_name': parent.name if parent else None})
 
 
-@app.get('/get_dependences_functions/<int:dependency_id>')
-def get_dependences_functions(dependency_id):
+@app.get('/get_dependencies_functions/<int:dependency_id>')
+def get_dependencies_functions(dependency_id):
     functions = DependencyFunction.query.filter_by(dependency_id=dependency_id).all()
 
     return jsonify([
@@ -2620,7 +2619,7 @@ def toggle_function_non_documented(function_id):
     })
 
 # =========================================================
-# dependences FUNCTIONS API
+# dependencies FUNCTIONS API
 # =========================================================
 @app.get("/api/functions")
 def api_functions():
@@ -2700,8 +2699,8 @@ def bulk_insert():
         return redirect(url_for("bulk_import.bulk_insert"))
 
     entities = Entity.query.all()
-    dependences = Dependency.query.all()
-    return render_template("bulk_insert.html", entities=entities, dependences=dependences)
+    dependencies = Dependency.query.all()
+    return render_template("bulk_insert.html", entities=entities, dependencies=dependencies)
 
 
 app.register_blueprint(bulk_bp)
@@ -2711,7 +2710,7 @@ app.register_blueprint(bulk_bp)
 # =========================================================
 
 # =========================================================
-# EXCEL EXPORT — BREAK BY dependences
+# EXCEL EXPORT — BREAK BY dependencies
 # =========================================================
 @app.route('/generator_code_excel')
 def generator_code_excel():
@@ -2745,7 +2744,7 @@ def generator_code_excel():
     )
 
     # ---------------------------
-    # GROUP BY dependences
+    # GROUP BY dependencies
     # ---------------------------
     studies_by_dep = defaultdict(list)
 
@@ -3068,7 +3067,7 @@ def get_tvd_data(entity_id):
 # GENERATOR CODE (HTML VIEW)
 # =====================================================
 # =========================================================
-# TVD GENERATOR (BREAK BY dependences)
+# TVD GENERATOR (BREAK BY dependencies)
 # =========================================================
 @app.route('/generator_code')
 @app.route('/generator_code')
@@ -3112,7 +3111,7 @@ def generator_code():
     )
 
     # ---------------------------
-    # GROUP BY dependences
+    # GROUP BY dependencies
     # ---------------------------
     studies_by_dep = defaultdict(list)
 
@@ -3298,7 +3297,7 @@ def entity_doctypes():
     series_by_id = {s.id: s.name for s in Series.query.all()}
     subseries_by_id = {s.id: s.name for s in Subseries.query.all()}
     doctypes_by_id = {d.id: d.name for d in Doctype.query.all()}
-    dependences = {d.id: d for d in Dependency.query.all()}
+    dependencies = {d.id: d for d in Dependency.query.all()}
 
 # --------------------------------------
 #   BUILD HIERARCHICAL STRUCTURE
@@ -3527,7 +3526,7 @@ def generator_code_sql():
     SELECT
 
     ds.entity_id,
-    d.code AS dependences_code,
+    d.code AS dependencies_code,
     df.function_number,
 
     (
@@ -3563,10 +3562,10 @@ def generator_code_sql():
 
     FROM documental_studies ds
 
-    JOIN dependences d
+    JOIN dependencies d
         ON d.id = ds.dependency_id
 
-    JOIN dependences_function df
+    JOIN dependencies_function df
         ON df.id = ds.funciones_especificas
 
     JOIN series s 

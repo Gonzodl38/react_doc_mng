@@ -1,22 +1,72 @@
-from flask import Flask
+from flask import (
+    Flask,
+    send_from_directory
+)
+
 from flask_cors import CORS
 
-app = Flask(__name__)
+from config import Config
 
-@app.route("/")
-def home():
-    return "HOME WORKING"
+from extensions import (
+    db,
+    migrate
+)
 
 
-@app.route("/api/test")
-def api_test():
-    return {"message": "Backend working"}
+def create_app():
 
-CORS(app)
+    app = Flask(__name__)
 
-@app.route("/api/test")
-def test():
-    return {"message": "Backend working"}
+    app.config.from_object(
+        Config
+    )
+
+    CORS(app)
+
+    db.init_app(app)
+
+    migrate.init_app(app, db)
+
+    # =========================
+    # BLUEPRINTS
+    # =========================
+    from api.entities import (
+        entities_bp
+    )
+
+    app.register_blueprint(
+        entities_bp
+    )
+
+    # =========================
+    # HOME
+    # =========================
+    @app.route("/")
+    def home():
+
+        return {
+            "message": "Backend online"
+        }
+
+    # =========================
+    # LOGO FILES
+    # =========================
+    @app.route(
+        "/uploads/logos/<filename>"
+    )
+    def uploaded_logo(filename):
+
+        return send_from_directory(
+            "uploads/logos",
+            filename
+        )
+
+    return app
+
+
+app = create_app()
+
 
 if __name__ == "__main__":
+
     app.run(debug=True)
