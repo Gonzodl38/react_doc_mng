@@ -162,6 +162,7 @@ function EntitiesPage() {
       </div>
 
     </div>
+    
   );
 }
 
