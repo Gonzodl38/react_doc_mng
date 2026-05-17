@@ -1,3 +1,6 @@
+from models.base_model import BaseModel
+from extensions import db
+
 class Dependency(BaseModel, db.Model):
     __tablename__ = "dependencies"
 
